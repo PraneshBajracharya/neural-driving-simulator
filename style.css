@@ -1,3 +1,4 @@
+/* Page-level layout: simulation canvas, side panel, and network canvas sit in one row. */
 body{
     margin:0;
     background:#2f2f2f;
@@ -9,6 +10,7 @@ body{
     color:#f5f5f5;
 }
 
+/* Left-side control and metrics panel. */
 #sidePanel{
     width:220px;
     background:#1f1f1f;
@@ -17,6 +19,7 @@ body{
     overflow-y:auto;
 }
 
+/* Each panel section gets spacing and a separator line. */
 .panelSection{
     border-bottom:1px solid #444;
     padding-bottom:14px;
@@ -32,6 +35,7 @@ h2{
     margin:0 0 10px 0;
 }
 
+/* Labels stack text above inputs for compact controls. */
 label{
     display:flex;
     flex-direction:column;
@@ -48,6 +52,7 @@ input{
     color:#f5f5f5;
 }
 
+/* File import label is styled like a button because native file inputs are hard to style. */
 button,
 .fileButton{
     border:none;
@@ -75,10 +80,12 @@ p{
     font-size:14px;
 }
 
+/* Neural-network visualization canvas. */
 #networkCanvas{
     background:black;
 }
 
+/* Driving simulation canvas. */
 #carCanvas{
     background:lightgray;
 }

@@ -1,7 +1,9 @@
+// Linear interpolation. Returns a value between A and B based on t.
 function lerp(A,B,t){
     return A+(B-A)*t;
 }
 
+// Finds the intersection point between line segment AB and line segment CD.
 function getIntersection(A,B,C,D){ 
     const tTop=(D.x-C.x)*(A.y-C.y)-(D.y-C.y)*(A.x-C.x);
     const uTop=(C.y-A.y)*(A.x-B.x)-(C.x-A.x)*(A.y-B.y);
@@ -10,6 +12,9 @@ function getIntersection(A,B,C,D){
     if(bottom!=0){
         const t=tTop/bottom;
         const u=uTop/bottom;
+
+        // t and u must both be within [0, 1] for the intersection to lie on
+        // both finite segments rather than only their infinite lines.
         if(t>=0 && t<=1 && u>=0 && u<=1){
             return {
                 x:lerp(A.x,B.x,t),
@@ -22,6 +27,7 @@ function getIntersection(A,B,C,D){
     return null;
 }
 
+// Checks whether any edge from poly1 intersects any edge from poly2.
 function polysIntersect(poly1, poly2){
     for(let i=0;i<poly1.length;i++){
         for(let j=0;j<poly2.length;j++){
@@ -39,6 +45,7 @@ function polysIntersect(poly1, poly2){
     return false;
 }
 
+// Converts a value in roughly [-1, 1] into a color used by the network viewer.
 function getRGBA(value){
     const alpha=Math.abs(value);
     const R=value<0?0:255;
@@ -47,8 +54,8 @@ function getRGBA(value){
     return "rgba("+R+","+G+","+B+","+alpha+")";
 }
 
+// Generates visually distinct traffic car colors.
 function getRandomColor(){
     const hue=290+Math.random()*260;
     return "hsl("+hue+", 100%, 60%)";
 }
-                

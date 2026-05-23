@@ -6,23 +6,28 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Main simulation canvas: road, traffic, AI cars, and sensors. -->
     <canvas id="carCanvas"></canvas>
 
+    <!-- Control panel for training settings, model persistence, and metrics. -->
     <aside id="sidePanel">
         <section class="panelSection">
             <h2>Training Controls</h2>
 
+            <!-- Number of AI cars generated during each simulation restart. -->
             <label>
                 Cars
                 <input id="carCount" type="number" min="1" max="1000" value="100">
             </label>
 
+            <!-- Mutation rate controls how aggressively saved models are randomized. -->
             <label>
                 Mutation Rate
                 <input id="mutationRate" type="range" min="0" max="1" step="0.01" value="0.10">
                 <span id="mutationRateValue">0.10</span>
             </label>
 
+            <!-- Number of dummy traffic cars placed on the road. -->
             <label>
                 Traffic Density
                 <input id="trafficDensity" type="number" min="0" max="50" value="7">
@@ -33,6 +38,8 @@
 
         <section class="panelSection">
             <h2>Model</h2>
+
+            <!-- Model actions use localStorage plus JSON import/export. -->
             <button onclick="save()">Save Model</button>
             <button onclick="resetModel()">Reset Model</button>
             <button onclick="exportModel()">Export Model</button>
@@ -44,6 +51,8 @@
 
         <section class="panelSection">
             <h2>Metrics</h2>
+
+            <!-- These values are updated every animation frame in main.js. -->
             <p>Distance: <span id="distanceMetric">0</span></p>
             <p>Best Fitness: <span id="fitnessMetric">0</span></p>
             <p>Cars Alive: <span id="aliveMetric">0</span></p>
@@ -52,8 +61,10 @@
         </section>
     </aside>
 
+    <!-- Side canvas for visualizing the active neural network. -->
     <canvas id="networkCanvas"></canvas>
 
+    <!-- Script order matters because these files define globals used by later files. -->
     <script src="visualizer.js"></script>
     <script src="network.js"></script>
     <script src="sensor.js"></script>

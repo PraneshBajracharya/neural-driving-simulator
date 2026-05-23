@@ -1,3 +1,4 @@
+// Ray-cast sensor system attached to each AI car.
 class Sensor{
     constructor(car){
         this.car=car;
@@ -10,8 +11,11 @@ class Sensor{
     }
 
     update(roadBorders,traffic){
+        // Recalculate ray positions from the car's current position and angle.
         this.#castRays();
         this.readings=[];
+
+        // For each ray, store the closest obstacle it touches.
         for(let i=0;i<this.rays.length;i++){
             this.readings.push(
                 this.#getReading(
@@ -26,6 +30,7 @@ class Sensor{
     #getReading(ray,roadBorders,traffic){
         let touches=[];
 
+        // Check ray intersections with road borders.
         for(let i=0;i<roadBorders.length;i++){
             const touch=getIntersection(
                 ray[0],
@@ -38,6 +43,7 @@ class Sensor{
             }
         }
 
+        // Check ray intersections with every edge of every traffic car polygon.
         for(let i=0;i<traffic.length;i++){
             const poly=traffic[i].polygon;
             for(let j=0;j<poly.length;j++){
@@ -53,6 +59,7 @@ class Sensor{
             }
         }
 
+        // If there are multiple intersections, keep only the nearest one.
         if(touches.length==0){
             return null;
         }else{
@@ -65,6 +72,7 @@ class Sensor{
     #castRays(){
         this.rays=[];
         for(let i=0;i<this.rayCount;i++){
+            // Spread rays evenly across raySpread and rotate them with the car.
             const rayAngle=lerp(
                 this.raySpread/2,
                 -this.raySpread/2,
@@ -84,6 +92,7 @@ class Sensor{
 
     draw(ctx){
         for(let i=0;i<this.rayCount;i++){
+            // Yellow shows the visible ray up to the closest detected obstacle.
             let end=this.rays[i][1];
             if(this.readings[i]){
                 end=this.readings[i];
@@ -102,6 +111,7 @@ class Sensor{
             );
             ctx.stroke();
 
+            // Black shows the unused part of the ray after the obstacle.
             ctx.beginPath();
             ctx.lineWidth=2;
             ctx.strokeStyle="black";
