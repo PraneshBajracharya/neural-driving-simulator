@@ -1,91 +1,258 @@
-/* Page-level layout: simulation canvas, side panel, and network canvas sit in one row. */
-body{
-    margin:0;
-    background:#2f2f2f;
-    overflow:hidden;
-    display:flex;
-    justify-content:center;
-    align-items:stretch;
-    font-family:Arial, Helvetica, sans-serif;
-    color:#f5f5f5;
+* {
+    box-sizing: border-box;
 }
 
-/* Left-side control and metrics panel. */
-#sidePanel{
-    width:220px;
-    background:#1f1f1f;
-    padding:12px;
-    box-sizing:border-box;
-    overflow-y:auto;
+html,
+body {
+    margin: 0;
+    min-height: 100vh;
+    overflow: hidden;
+    font-family: Inter, Arial, Helvetica, sans-serif;
+    background: #111827;
+    color: #e5e7eb;
 }
 
-/* Each panel section gets spacing and a separator line. */
-.panelSection{
-    border-bottom:1px solid #444;
-    padding-bottom:14px;
-    margin-bottom:14px;
+#appShell {
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 360px minmax(360px, 440px) 320px;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px;
+    background: linear-gradient(135deg, #0f172a 0%, #111827 45%, #1f2937 100%);
 }
 
-.panelSection:last-child{
-    border-bottom:none;
+.canvasPanel,
+#sidePanel {
+    height: calc(100vh - 32px);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
 }
 
-h2{
-    font-size:16px;
-    margin:0 0 10px 0;
+.canvasPanel {
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    background: #030712;
 }
 
-/* Labels stack text above inputs for compact controls. */
-label{
-    display:flex;
-    flex-direction:column;
-    gap:4px;
-    margin-bottom:10px;
-    font-size:14px;
+.roadPanel {
+    background: #9ca3af;
 }
 
-input{
-    padding:6px;
-    border:1px solid #555;
-    border-radius:6px;
-    background:#111;
-    color:#f5f5f5;
+.networkPanel {
+    background: #020617;
 }
 
-/* File import label is styled like a button because native file inputs are hard to style. */
+#carCanvas,
+#networkCanvas {
+    display: block;
+    height: 100%;
+}
+
+#sidePanel {
+    padding: 22px;
+    overflow-y: auto;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(12px);
+}
+
+.panelHeader {
+    margin-bottom: 22px;
+}
+
+.eyebrow {
+    margin: 0 0 8px;
+    color: #60a5fa;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+    margin-top: 0;
+}
+
+h1 {
+    margin-bottom: 8px;
+    font-size: 1.75rem;
+    line-height: 1.1;
+}
+
+.panelSubtitle,
+.sectionHeader p {
+    color: #94a3b8;
+    line-height: 1.45;
+}
+
+.panelSubtitle {
+    margin-bottom: 0;
+}
+
+.panelSection {
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 14px;
+    background: rgba(30, 41, 59, 0.72);
+}
+
+.sectionHeader {
+    margin-bottom: 14px;
+}
+
+.sectionHeader h2 {
+    margin-bottom: 5px;
+    font-size: 1rem;
+}
+
+.sectionHeader p {
+    margin-bottom: 0;
+    font-size: 0.86rem;
+}
+
+.controlGrid,
+.buttonGrid,
+.metricGrid {
+    display: grid;
+    gap: 12px;
+}
+
+.controlGrid {
+    grid-template-columns: 1fr 1fr;
+}
+
+.controlField {
+    display: grid;
+    gap: 7px;
+    color: #cbd5e1;
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.controlField input[type="number"] {
+    width: 100%;
+    padding: 10px 11px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 10px;
+    color: #f8fafc;
+    background: rgba(2, 6, 23, 0.72);
+    outline: none;
+}
+
+.controlField input[type="number"]:focus {
+    border-color: #60a5fa;
+}
+
+.rangeField {
+    margin-top: 14px;
+}
+
+.rangeField span {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rangeField strong {
+    color: #93c5fd;
+}
+
+input[type="range"] {
+    width: 100%;
+    accent-color: #3b82f6;
+}
+
 button,
-.fileButton{
-    border:none;
-    border-radius:6px;
-    padding:8px;
-    margin:4px 0;
-    cursor:pointer;
-    background:#f5f5f5;
-    color:#111;
-    font-weight:bold;
-    text-align:center;
+.fileButton {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #e5e7eb;
+    background: #334155;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 120ms ease, background 120ms ease;
 }
 
 button:hover,
-.fileButton:hover{
-    background:#cfcfcf;
+.fileButton:hover {
+    transform: translateY(-1px);
+    background: #475569;
 }
 
-.fileButton input{
-    display:none;
+.primaryButton {
+    width: 100%;
+    margin-top: 16px;
+    background: #2563eb;
 }
 
-p{
-    margin:6px 0;
-    font-size:14px;
+.primaryButton:hover {
+    background: #1d4ed8;
 }
 
-/* Neural-network visualization canvas. */
-#networkCanvas{
-    background:black;
+.buttonGrid {
+    grid-template-columns: 1fr 1fr;
 }
 
-/* Driving simulation canvas. */
-#carCanvas{
-    background:lightgray;
+.fileButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.fileButton input {
+    display: none;
+}
+
+.metricGrid {
+    grid-template-columns: 1fr 1fr;
+}
+
+.metricCard {
+    padding: 13px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    border-radius: 12px;
+    background: rgba(2, 6, 23, 0.52);
+}
+
+.metricLabel {
+    display: block;
+    margin-bottom: 6px;
+    color: #94a3b8;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.metricCard strong {
+    color: #f8fafc;
+    font-size: 1.15rem;
+}
+
+.wideMetric {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 1100px) {
+    #appShell {
+        grid-template-columns: 320px minmax(320px, 390px) 280px;
+        gap: 10px;
+        padding: 10px;
+    }
+
+    .canvasPanel,
+    #sidePanel {
+        height: calc(100vh - 20px);
+    }
 }

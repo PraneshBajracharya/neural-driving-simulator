@@ -3,66 +3,108 @@
 <head>
     <meta charset="utf-8">
     <title>Neural Driving Simulator</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./style.css?v=2">
+
 </head>
 <body>
-    <!-- Main simulation canvas: road, traffic, AI cars, and sensors. -->
-    <canvas id="carCanvas"></canvas>
-
-    <!-- Control panel for training settings, model persistence, and metrics. -->
-    <aside id="sidePanel">
-        <section class="panelSection">
-            <h2>Training Controls</h2>
-
-            <!-- Number of AI cars generated during each simulation restart. -->
-            <label>
-                Cars
-                <input id="carCount" type="number" min="1" max="1000" value="100">
-            </label>
-
-            <!-- Mutation rate controls how aggressively saved models are randomized. -->
-            <label>
-                Mutation Rate
-                <input id="mutationRate" type="range" min="0" max="1" step="0.01" value="0.10">
-                <span id="mutationRateValue">0.10</span>
-            </label>
-
-            <!-- Number of dummy traffic cars placed on the road. -->
-            <label>
-                Traffic Density
-                <input id="trafficDensity" type="number" min="0" max="50" value="7">
-            </label>
-
-            <button onclick="restartSimulation()">Restart Simulation</button>
+    <main id="appShell">
+        <!-- Main simulation canvas: road, traffic, AI cars, and sensors. -->
+        <section class="canvasPanel roadPanel" aria-label="Driving simulation">
+            <canvas id="carCanvas"></canvas>
         </section>
 
-        <section class="panelSection">
-            <h2>Model</h2>
+        <!-- Control panel for training settings, model persistence, and metrics. -->
+        <aside id="sidePanel" aria-label="Simulation controls">
+            <header class="panelHeader">
+                <p class="eyebrow">Neural Driving Simulator</p>
+                <h1>Training Dashboard</h1>
+                <p class="panelSubtitle">Tune the simulation, save models, and monitor live driving performance.</p>
+            </header>
 
-            <!-- Model actions use localStorage plus JSON import/export. -->
-            <button onclick="save()">Save Model</button>
-            <button onclick="resetModel()">Reset Model</button>
-            <button onclick="exportModel()">Export Model</button>
-            <label class="fileButton">
-                Import Model
-                <input type="file" accept=".json,application/json" onchange="importModel(event)">
-            </label>
+            <section class="panelSection">
+                <div class="sectionHeader">
+                    <h2>Training Controls</h2>
+                    <p>Adjust population size, mutation strength, and traffic complexity.</p>
+                </div>
+
+                <div class="controlGrid">
+                    <!-- Number of AI cars generated during each simulation restart. -->
+                    <label class="controlField">
+                        <span>Cars</span>
+                        <input id="carCount" type="number" min="1" max="1000" value="100">
+                    </label>
+
+                    <!-- Number of dummy traffic cars placed on the road. -->
+                    <label class="controlField">
+                        <span>Traffic Density</span>
+                        <input id="trafficDensity" type="number" min="0" max="50" value="7">
+                    </label>
+                </div>
+
+                <!-- Mutation rate controls how aggressively saved models are randomized. -->
+                <label class="controlField rangeField">
+                    <span>Mutation Rate <strong id="mutationRateValue">0.10</strong></span>
+                    <input id="mutationRate" type="range" min="0" max="1" step="0.01" value="0.10">
+                </label>
+
+                <button class="primaryButton" onclick="restartSimulation()">Restart Simulation</button>
+            </section>
+
+            <section class="panelSection">
+                <div class="sectionHeader">
+                    <h2>Model</h2>
+                    <p>Persist the best neural network or move it between browsers.</p>
+                </div>
+
+                <!-- Model actions use localStorage plus JSON import/export. -->
+                <div class="buttonGrid">
+                    <button onclick="save()">Save Model</button>
+                    <button onclick="resetModel()">Reset Model</button>
+                    <button onclick="exportModel()">Export Model</button>
+                    <label class="fileButton">
+                        Import Model
+                        <input type="file" accept=".json,application/json" onchange="importModel(event)">
+                    </label>
+                </div>
+            </section>
+
+            <section class="panelSection metricsSection">
+                <div class="sectionHeader">
+                    <h2>Metrics</h2>
+                    <p>Live statistics for the current training run.</p>
+                </div>
+
+                <!-- These values are updated every animation frame in main.js. -->
+                <div class="metricGrid">
+                    <div class="metricCard">
+                        <span class="metricLabel">Distance</span>
+                        <strong id="distanceMetric">0</strong>
+                    </div>
+                    <div class="metricCard">
+                        <span class="metricLabel">Best Fitness</span>
+                        <strong id="fitnessMetric">0</strong>
+                    </div>
+                    <div class="metricCard">
+                        <span class="metricLabel">Cars Alive</span>
+                        <strong id="aliveMetric">0</strong>
+                    </div>
+                    <div class="metricCard">
+                        <span class="metricLabel">Crashes</span>
+                        <strong id="crashMetric">0</strong>
+                    </div>
+                    <div class="metricCard wideMetric">
+                        <span class="metricLabel">Saved Model</span>
+                        <strong id="savedModelMetric">No</strong>
+                    </div>
+                </div>
+            </section>
+        </aside>
+
+        <!-- Side canvas for visualizing the active neural network. -->
+        <section class="canvasPanel networkPanel" aria-label="Neural network visualization">
+            <canvas id="networkCanvas"></canvas>
         </section>
-
-        <section class="panelSection">
-            <h2>Metrics</h2>
-
-            <!-- These values are updated every animation frame in main.js. -->
-            <p>Distance: <span id="distanceMetric">0</span></p>
-            <p>Best Fitness: <span id="fitnessMetric">0</span></p>
-            <p>Cars Alive: <span id="aliveMetric">0</span></p>
-            <p>Crashes: <span id="crashMetric">0</span></p>
-            <p>Saved Model: <span id="savedModelMetric">No</span></p>
-        </section>
-    </aside>
-
-    <!-- Side canvas for visualizing the active neural network. -->
-    <canvas id="networkCanvas"></canvas>
+    </main>
 
     <!-- Script order matters because these files define globals used by later files. -->
     <script src="visualizer.js"></script>

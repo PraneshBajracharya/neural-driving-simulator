@@ -1,78 +1,84 @@
-// Main simulation setup and animation loop.
-// This file connects the UI controls, car simulation, neural network, and canvas rendering.
-
-// Canvas used for the road and cars.
 const carCanvas = document.getElementById("carCanvas");
 carCanvas.width = 200;
 
-// Canvas used for the neural-network visualization.
 const networkCanvas = document.getElementById("networkCanvas");
 networkCanvas.width = 300;
 
 const carCtx = carCanvas.getContext("2d");
 const networkCtx = networkCanvas.getContext("2d");
 
-// Road is centered inside the car canvas and uses 90% of the canvas width.
 const road = new Road(carCanvas.width / 2, carCanvas.width * 0.9);
 
-// Simulation state. These arrays are recreated when the user restarts training.
 let cars = [];
-let traffic = [];
 let bestCar = null;
-let mutationRate = 0.10;
+let traffic = [];
+let animationFrameId = null;
+const BRAIN_VERSION = "sensor-7-hidden-8";
 
-// UI elements for training configuration.
 const carCountInput = document.getElementById("carCount");
 const mutationRateInput = document.getElementById("mutationRate");
 const mutationRateValue = document.getElementById("mutationRateValue");
 const trafficDensityInput = document.getElementById("trafficDensity");
 
-// Keep the visible mutation-rate value synchronized with the slider.
-mutationRateInput.addEventListener("input", () => {
-    mutationRate = Number(mutationRateInput.value);
-    mutationRateValue.innerText = mutationRate.toFixed(2);
-});
+const distanceMetric = document.getElementById("distanceMetric");
+const fitnessMetric = document.getElementById("fitnessMetric");
+const aliveMetric = document.getElementById("aliveMetric");
+const crashMetric = document.getElementById("crashMetric");
+const savedModelMetric = document.getElementById("savedModelMetric");
 
-// Start the first simulation immediately when the page loads.
 restartSimulation();
-animate();
 
-// Saves the current best car's neural network to browser localStorage.
 function save() {
     if (!bestCar || !bestCar.brain) {
         return;
     }
 
-    localStorage.setItem("bestBrain",
-        JSON.stringify(bestCar.brain));
-    updateSavedModelMetric();
+    const previousSaveCount = Number(localStorage.getItem("bestBrainSaveCount")) || 0;
+    const newSaveCount = previousSaveCount + 1;
+    const savedFitness = getFitness(bestCar);
+    const savedDistance = Math.max(0, Math.round(100 - bestCar.y));
+
+    localStorage.setItem("bestBrain", JSON.stringify(bestCar.brain));
+    localStorage.setItem("bestBrainVersion", BRAIN_VERSION);
+    localStorage.setItem("bestBrainSaveCount", String(newSaveCount));
+    localStorage.setItem("bestBrainSavedFitness", String(savedFitness));
+    localStorage.setItem("bestBrainSavedDistance", String(savedDistance));
+    localStorage.setItem("bestBrainSavedAt", new Date().toLocaleTimeString());
+
+    updateMetrics();
 }
 
-// Deletes the saved model and restarts with randomly initialized cars.
+function discard() {
+    resetModel();
+}
+
 function resetModel() {
     localStorage.removeItem("bestBrain");
+    localStorage.removeItem("bestBrainVersion");
+    localStorage.removeItem("bestBrainSaveCount");
+    localStorage.removeItem("bestBrainSavedFitness");
+    localStorage.removeItem("bestBrainSavedDistance");
+    localStorage.removeItem("bestBrainSavedAt");
     restartSimulation();
-    updateSavedModelMetric();
 }
 
-// Downloads the saved model as a JSON file so it can be backed up or shared.
 function exportModel() {
-    const model = localStorage.getItem("bestBrain");
-
-    if (!model) {
-        alert("No saved model found. Save a model before exporting.");
+    if (!bestCar || !bestCar.brain) {
         return;
     }
 
-    const blob = new Blob([model], { type: "application/json" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "best-brain.json";
-    link.click();
-    URL.revokeObjectURL(link.href);
+    const modelData = JSON.stringify(bestCar.brain, null, 2);
+    const blob = new Blob([modelData], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = "best-brain.json";
+    downloadLink.click();
+
+    URL.revokeObjectURL(url);
 }
 
-// Imports a saved model JSON file and stores it as the active best brain.
 function importModel(event) {
     const file = event.target.files[0];
 
@@ -82,164 +88,257 @@ function importModel(event) {
 
     const reader = new FileReader();
 
-    reader.onload = function (e) {
+    reader.onload = function () {
         try {
-            // Parse once to validate that the imported file is valid JSON.
-            JSON.parse(e.target.result);
-            localStorage.setItem("bestBrain", e.target.result);
+            const importedBrain = JSON.parse(reader.result);
+            localStorage.setItem("bestBrain", JSON.stringify(importedBrain));
+            localStorage.setItem("bestBrainVersion", BRAIN_VERSION);
             restartSimulation();
-            updateSavedModelMetric();
         } catch (error) {
-            alert("Invalid model file. Please import a valid JSON model.");
+            alert("Invalid model file. Please import a valid JSON neural-network model.");
         }
     };
 
     reader.readAsText(file);
-
-    // Reset the file input so importing the same file again still triggers onchange.
     event.target.value = "";
 }
 
-// Recreates cars and traffic using the current UI settings.
 function restartSimulation() {
-    const carCount = Math.max(1, Number(carCountInput.value));
-    const trafficDensity = Math.max(0, Number(trafficDensityInput.value));
-    mutationRate = Number(mutationRateInput.value);
-    mutationRateValue.innerText = mutationRate.toFixed(2);
+    if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+    }
+
+    const carCount = getNumberInputValue(carCountInput, 100, 1, 1000);
+    const mutationRate = getNumberInputValue(mutationRateInput, 0.1, 0, 1);
+    const trafficDensity = getNumberInputValue(trafficDensityInput, 7, 0, 50);
 
     cars = generateCars(carCount);
     bestCar = cars[0];
+    traffic = generateTraffic(trafficDensity);
 
-    // If a saved model exists, copy it into every AI car. Mutate all cars except
-    // the first one so there is one exact baseline and many variations.
     const savedBrain = localStorage.getItem("bestBrain");
-    if (savedBrain) {
+    const savedBrainVersion = localStorage.getItem("bestBrainVersion");
+
+    if (savedBrain && savedBrainVersion === BRAIN_VERSION) {
         for (let i = 0; i < cars.length; i++) {
             cars[i].brain = JSON.parse(savedBrain);
+
             if (i !== 0) {
                 NeuralNetwork.mutate(cars[i].brain, mutationRate);
             }
         }
+    } else if (savedBrain && savedBrainVersion !== BRAIN_VERSION) {
+        resetModelStorageOnly();
     }
 
-    traffic = generateTraffic(trafficDensity);
-    updateSavedModelMetric();
-    updateMetrics();
+    updateMutationRateLabel();
+    animate();
 }
 
-// Creates a population of AI cars starting in the center lane.
 function generateCars(count) {
     const generatedCars = [];
-    for (let i = 1; i <= count; i++) {
+
+    for (let i = 0; i < count; i++) {
         generatedCars.push(new Car(road.getLaneCenter(1), 100, 30, 50, "AI"));
     }
+
     return generatedCars;
 }
 
-// Creates dummy traffic cars distributed across lanes and spaced vertically.
 function generateTraffic(count) {
-    const baseTraffic = [
-        [1, -100],
-        [0, -300],
-        [2, -300],
-        [0, -500],
-        [1, -500],
-        [1, -700],
-        [2, -700],
-    ];
-
     const generatedTraffic = [];
 
+    const originalPattern = [
+        { lane: 1, y: -100 },
+        { lane: 0, y: -300 },
+        { lane: 2, y: -300 },
+        { lane: 0, y: -500 },
+        { lane: 1, y: -500 },
+        { lane: 1, y: -700 },
+        { lane: 2, y: -700 },
+    ];
+
     for (let i = 0; i < count; i++) {
-        let lane;
-        let y;
-
-        if (i < baseTraffic.length) {
-            [lane, y] = baseTraffic[i];
-        } else {
-            lane = Math.floor(Math.random() * 3);
-            y = -900 - (i - baseTraffic.length) * 200;
-
-        }
+        const pattern = originalPattern[i % originalPattern.length];
+        const repeatOffset = Math.floor(i / originalPattern.length) * -800;
 
         generatedTraffic.push(
-            new Car(road.getLaneCenter(lane), y, 30, 50, "DUMMY", 2, getRandomColor())
+            new Car(
+                road.getLaneCenter(pattern.lane),
+                pattern.y + repeatOffset,
+                30,
+                50,
+                "DUMMY",
+                2,
+                getRandomColor()
+            )
         );
     }
 
     return generatedTraffic;
 }
 
-// Updates the metrics panel with the current best-car performance.
+function getFitness(car) {
+    if (!car) {
+        return 0;
+    }
+
+    const distanceScore = 100 - car.y;
+    const crashPenalty = car.damaged ? 1200 : 0;
+    const passedTrafficBonus = getPassedTrafficCount(car) * 250;
+    const wallPenalty = isNearRoadEdge(car) ? 250 : 0;
+
+    return Math.round(
+        distanceScore +
+        passedTrafficBonus -
+        crashPenalty -
+        wallPenalty
+    );
+}
+
+function getPassedTrafficCount(car) {
+    return traffic.filter(trafficCar => car.y < trafficCar.y).length;
+}
+
+function isNearRoadEdge(car) {
+    const margin = car.width * 0.75;
+    const leftEdge = road.left + margin;
+    const rightEdge = road.right - margin;
+
+    return car.x < leftEdge || car.x > rightEdge;
+}
+
 function updateMetrics() {
     if (!bestCar) {
         return;
     }
 
-    const aliveCars = cars.filter(car => !car.damaged).length;
-    const crashedCars = cars.length - aliveCars;
-
-    // Cars drive upward, so smaller y-values mean more forward progress.
     const distance = Math.max(0, Math.round(100 - bestCar.y));
-    const fitness = distance;
+    const bestFitness = getFitness(bestCar);
+    const carsAlive = cars.filter(car => !car.damaged).length;
+    const crashes = cars.length - carsAlive;
+    const savedModelSummary = getSavedModelSummary();
 
-    document.getElementById("distanceMetric").innerText = distance;
-    document.getElementById("fitnessMetric").innerText = fitness;
-    document.getElementById("aliveMetric").innerText = aliveCars;
-    document.getElementById("crashMetric").innerText = crashedCars;
+    if (distanceMetric) {
+        distanceMetric.textContent = distance;
+    }
+
+    if (fitnessMetric) {
+        fitnessMetric.textContent = bestFitness;
+    }
+
+    if (aliveMetric) {
+        aliveMetric.textContent = carsAlive;
+    }
+
+    if (crashMetric) {
+        crashMetric.textContent = crashes;
+    }
+
+    if (savedModelMetric) {
+        savedModelMetric.textContent = savedModelSummary;
+    }
 }
 
-// Shows whether a neural-network model is currently saved in localStorage.
-function updateSavedModelMetric() {
-    document.getElementById("savedModelMetric").innerText =
-        localStorage.getItem("bestBrain") ? "Yes" : "No";
+function getSavedModelSummary() {
+    if (!localStorage.getItem("bestBrain")) {
+        return "No";
+    }
+
+    const saveCount = localStorage.getItem("bestBrainSaveCount") || "1";
+    const savedFitness = localStorage.getItem("bestBrainSavedFitness") || "?";
+    const savedDistance = localStorage.getItem("bestBrainSavedDistance") || "?";
+    const savedAt = localStorage.getItem("bestBrainSavedAt") || "unknown time";
+
+    return `Save #${saveCount} | Fitness ${savedFitness} | Distance ${savedDistance} | ${savedAt}`;
 }
 
-// Runs once per animation frame. Updates simulation state, redraws both canvases,
-// and schedules the next frame.
-function animate(time) {
-    // Move traffic first so AI cars react to current traffic positions.
+function resetModelStorageOnly() {
+    localStorage.removeItem("bestBrain");
+    localStorage.removeItem("bestBrainVersion");
+    localStorage.removeItem("bestBrainSaveCount");
+    localStorage.removeItem("bestBrainSavedFitness");
+    localStorage.removeItem("bestBrainSavedDistance");
+    localStorage.removeItem("bestBrainSavedAt");
+}
+
+function updateMutationRateLabel() {
+    if (!mutationRateInput || !mutationRateValue) {
+        return;
+    }
+
+    mutationRateValue.textContent = Number(mutationRateInput.value).toFixed(2);
+}
+
+function getNumberInputValue(input, fallback, min, max) {
+    if (!input) {
+        return fallback;
+    }
+
+    const value = Number(input.value);
+
+    if (Number.isNaN(value)) {
+        input.value = fallback;
+        return fallback;
+    }
+
+    const clampedValue = Math.min(Math.max(value, min), max);
+    input.value = clampedValue;
+
+    return clampedValue;
+}
+
+function animate(time = 0) {
     for (let i = 0; i < traffic.length; i++) {
         traffic[i].update(road.borders, []);
     }
 
-    // Update every AI car in the population.
     for (let i = 0; i < cars.length; i++) {
         cars[i].update(road.borders, traffic);
     }
 
-    // The best car is the one that has traveled farthest upward.
-    bestCar = cars.find(
-        c => c.y == Math.min(
-            ...cars.map(c => c.y)
-        ));
+    bestCar = cars.reduce((best, car) => {
+        return getFitness(car) > getFitness(best) ? car : best;
+    }, cars[0]);
 
     updateMetrics();
 
-    // Match canvas height to the current browser window height.
     carCanvas.height = window.innerHeight;
     networkCanvas.height = window.innerHeight;
 
-    // Keep the camera centered slightly ahead of the best car.
     carCtx.save();
     carCtx.translate(0, -bestCar.y + carCanvas.height * 0.7);
 
-    // Draw road, traffic, faint population, and highlighted best car.
     road.draw(carCtx);
+
     for (let i = 0; i < traffic.length; i++) {
         traffic[i].draw(carCtx);
     }
+
     carCtx.globalAlpha = 0.2;
+
     for (let i = 0; i < cars.length; i++) {
         cars[i].draw(carCtx);
     }
+
     carCtx.globalAlpha = 1;
     bestCar.draw(carCtx, true);
 
     carCtx.restore();
 
-    // Animate dashed network lines and redraw the best car's network.
     networkCtx.lineDashOffset = -time / 50;
     Visualizer.drawNetwork(networkCtx, bestCar.brain);
-    requestAnimationFrame(animate);
+
+    animationFrameId = requestAnimationFrame(animate);
 }
+
+if (mutationRateInput) {
+    mutationRateInput.addEventListener("input", updateMutationRateLabel);
+}
+
+window.save = save;
+window.discard = discard;
+window.resetModel = resetModel;
+window.exportModel = exportModel;
+window.importModel = importModel;
+window.restartSimulation = restartSimulation;

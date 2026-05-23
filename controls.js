@@ -1,7 +1,5 @@
-// Stores the four possible driving commands for a car.
 class Controls{
     constructor(type){
-        // Each value is true while that action is active.
         this.forward=false;
         this.left=false;
         this.right=false;
@@ -9,18 +7,15 @@ class Controls{
 
         switch(type){
             case "KEYS":
-                // Human-controlled car.
                 this.#addKeyboardListeners();
                 break;
             case "DUMMY":
-                // Traffic cars always drive straight ahead.
                 this.forward=true;
                 break;
         }
     }
 
     #addKeyboardListeners(){
-        // Set movement flags when the user presses arrow keys.
         document.onkeydown=(event)=>{
             switch(event.key){
                 case "ArrowLeft":
@@ -37,8 +32,6 @@ class Controls{
                     break;
             }
         }
-
-        // Clear movement flags when the user releases arrow keys.
         document.onkeyup=(event)=>{
             switch(event.key){
                 case "ArrowLeft":
