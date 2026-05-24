@@ -13,7 +13,12 @@ let cars = [];
 let bestCar = null;
 let traffic = [];
 let animationFrameId = null;
-const BRAIN_VERSION = "sensor-7-hidden-8";
+
+// Change this if you intentionally change the neural network shape.
+// For the tutorial setup, this assumes:
+// sensor.js: rayCount = 5
+// car.js: [this.sensor.rayCount, 6, 4]
+const BRAIN_VERSION = "tutorial-dashboard-v1";
 
 const carCountInput = document.getElementById("carCount");
 const mutationRateInput = document.getElementById("mutationRate");
@@ -53,12 +58,7 @@ function discard() {
 }
 
 function resetModel() {
-    localStorage.removeItem("bestBrain");
-    localStorage.removeItem("bestBrainVersion");
-    localStorage.removeItem("bestBrainSaveCount");
-    localStorage.removeItem("bestBrainSavedFitness");
-    localStorage.removeItem("bestBrainSavedDistance");
-    localStorage.removeItem("bestBrainSavedAt");
+    clearSavedModel();
     restartSimulation();
 }
 
@@ -91,8 +91,14 @@ function importModel(event) {
     reader.onload = function () {
         try {
             const importedBrain = JSON.parse(reader.result);
+
             localStorage.setItem("bestBrain", JSON.stringify(importedBrain));
             localStorage.setItem("bestBrainVersion", BRAIN_VERSION);
+            localStorage.setItem("bestBrainSaveCount", "1");
+            localStorage.setItem("bestBrainSavedFitness", "?");
+            localStorage.setItem("bestBrainSavedDistance", "?");
+            localStorage.setItem("bestBrainSavedAt", new Date().toLocaleTimeString());
+
             restartSimulation();
         } catch (error) {
             alert("Invalid model file. Please import a valid JSON neural-network model.");
@@ -128,7 +134,7 @@ function restartSimulation() {
             }
         }
     } else if (savedBrain && savedBrainVersion !== BRAIN_VERSION) {
-        resetModelStorageOnly();
+        clearSavedModel();
     }
 
     updateMutationRateLabel();
@@ -178,34 +184,15 @@ function generateTraffic(count) {
     return generatedTraffic;
 }
 
+// Kept simple on purpose.
+// The tutorial's selection logic is based on distance traveled.
+// More complex scoring made the cars too conservative or too reckless.
 function getFitness(car) {
     if (!car) {
         return 0;
     }
 
-    const distanceScore = 100 - car.y;
-    const crashPenalty = car.damaged ? 1200 : 0;
-    const passedTrafficBonus = getPassedTrafficCount(car) * 250;
-    const wallPenalty = isNearRoadEdge(car) ? 250 : 0;
-
-    return Math.round(
-        distanceScore +
-        passedTrafficBonus -
-        crashPenalty -
-        wallPenalty
-    );
-}
-
-function getPassedTrafficCount(car) {
-    return traffic.filter(trafficCar => car.y < trafficCar.y).length;
-}
-
-function isNearRoadEdge(car) {
-    const margin = car.width * 0.75;
-    const leftEdge = road.left + margin;
-    const rightEdge = road.right - margin;
-
-    return car.x < leftEdge || car.x > rightEdge;
+    return Math.round(100 - car.y);
 }
 
 function updateMetrics() {
@@ -253,7 +240,7 @@ function getSavedModelSummary() {
     return `Save #${saveCount} | Fitness ${savedFitness} | Distance ${savedDistance} | ${savedAt}`;
 }
 
-function resetModelStorageOnly() {
+function clearSavedModel() {
     localStorage.removeItem("bestBrain");
     localStorage.removeItem("bestBrainVersion");
     localStorage.removeItem("bestBrainSaveCount");
@@ -297,9 +284,11 @@ function animate(time = 0) {
         cars[i].update(road.borders, traffic);
     }
 
-    bestCar = cars.reduce((best, car) => {
-        return getFitness(car) > getFitness(best) ? car : best;
-    }, cars[0]);
+    // Original tutorial-style best-car selection:
+    // whichever car traveled farthest upward is treated as the best.
+    bestCar = cars.find(
+        car => car.y === Math.min(...cars.map(car => car.y))
+    );
 
     updateMetrics();
 
